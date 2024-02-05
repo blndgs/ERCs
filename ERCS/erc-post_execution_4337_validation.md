@@ -1,133 +1,126 @@
 ---
 
-title: AA support for post execution
-description: This ERC proposes a new [ISomething] interface as an extension for ERC-4337 to support post-execution validation.
-author: <a comma separated list of the author's or authors' name + GitHub username (in parenthesis), or name and email (in angle brackets).  Example, FirstName LastName (@GitHubUsername), FirstName LastName <foo@bar.com>, FirstName (@GitHubUsername) and GitHubUsername (@GitHubUsername)>
-discussions-to: <URL>
+title: Extend 4337 with post execution validation
+description: This ERC proposes a new IAccount interface as an extension for ERC-4337 to support post-execution validation.
+author: Ofir Elias (EliasiOfir), Mario Karagiorgas (blewater).
 status: Draft
 type: Standards
 category: ERC
-created: <date created on, in ISO 8601 (yyyy-mm-dd) format>
-requires: 4337
+created: 2024-02-05
+requires: ERC-4337
 ---
-
-<!--
-  READ EIP-1 (https://eips.ethereum.org/EIPS/eip-1) BEFORE USING THIS TEMPLATE!
-
-  This is the suggested template for new EIPs. After you have filled in the requisite fields, please delete these comments.
-
-  Note that an EIP number will be assigned by an editor. When opening a pull request to submit your EIP, please use an abbreviated title in the filename, `eip-draft_title_abbrev.md`.
-
-  The title should be 44 characters or less. It should not repeat the EIP number in title, irrespective of the category.
-
-  TODO: Remove this comment before submitting
--->
 
 ## Abstract
 
-Enabling userOp post-execution validation in a structured & efficient way.  
+This proposal extends [ERC-4337](./erc-4337.md) with a post-execution validation mechanism. It extends the 4337 wallets' IAccount interface with a post-bundle execution validation function. Moreover, it proposes amending the EntryPoint contract's handleOps() function to call the proposed IAccount validation function. Thus, this proposal introduces a validation layer that occurs after the execution of the entire bundle, providing a comprehensive view of the final state against which each user operation can be validated.
 
 ## Motivation
-userOp post-execution validation is only available as part of the execution step, the same as implemented on ERc-6900 for example.
-There is no way to measure the result at the end of bundle execution.
-Why it's required?
-Other userOps may\might impact the account state during the bundle execution.
-This proposal will allow to 
-Cases where a userOp may be impacted by other userOps on the same bundle (for good or bad).
-Whether it's userOps form the same wallet, userOps with any kind of relationship or a useOp location.  
-
-It may inner bundle related userOps, Whether the source of the userOps is the same wallet or not. 
-
-And for cases a userOp impacted by the other userOps or by it's location that need to be validated or follow any restrictions.
-
-Use Cases:
-- MEV \ slippage \ ...
-- Intents
-
-
-
-<!--
-  This section is optional.
-
-  The motivation section should include a description of any nontrivial problems the EIP solves. It should not describe how the EIP solves those problems, unless it is not immediately obvious. It should not describe why the EIP should be made into a standard, unless it is not immediately obvious.
-
-  With a few exceptions, external links are not allowed. If you feel that a particular resource would demonstrate a compelling case for your EIP, then save it as a printer-friendly PDF, put it in the assets folder, and link to that copy.
-
-  TODO: Remove this comment before submitting
--->
+The motivation behind enhancing ERC-4337 with a post-execution validation mechanism stems from the need to assess and validate the cumulative effects of user operations within a bundle, especially in light of their complex interdependencies and the final state they collectively produce. ERC-4337 cannot validate the state of a user operation after the execution of a bundle, limiting its use in scenarios where operations are interdependent. This limitation hinders assessing the effectiveness of executing dependent operations that rely on the outcome of preceding operations within the same bundle. For instance, in DeFi, a user aiming to perform a sequence of swaps and stakings in a single transaction (bundle) lacks the assurance that the entire operation can be validated post-execution, leading to potential risks. Similarly, decentralized games and social recovery mechanisms are unable to enforce conditions based on the final state after multiple operations.
 
 ## Specification
 
-<!--
-  The Specification section should describe the syntax and semantics of any new feature. The specification should be detailed enough to allow competing, interoperable implementations for any of the current Ethereum platforms (besu, erigon, ethereumjs, go-ethereum, nethermind, or others).
+IAccount Interface Enhancement
+The IAccount interface should be extended to include a validatePostExecution method. This method allows for the validation of userOps after the entire bundle has been executed, enabling contracts to implement custom logic for validation based on the new network state.
 
-  It is recommended to follow RFC 2119 and RFC 8170. Do not remove the key word definitions if RFC 2119 and RFC 8170 are followed.
+```Solidity
+interface IAccount {
+    function validatePostExecution(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds) external returns (uint256 validationData);
+}
+```
 
-  TODO: Remove this comment before submitting
--->
+SimpleAccount Implementation
+The SimpleAccount contract should implement the validatePostExecution method, providing a template for how accounts can perform post-execution validations. This method could, for instance, check whether the account's state after the bundle execution meets certain criteria specified in the userOp.
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+```Solidity
+contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initializable {
+    ...
+    function validatePostExecution(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds) external override returns (uint256 validationData) {
+        // Implement post-execution validation logic here
+        ...
+    }
+    ...
+}
+```
+
+EntryPoint Contract Modification
+The EntryPoint contract's handleOps function should be modified to call the validatePostExecution method for each userOp after executing the entire bundle. This ensures that all post-execution validations are performed before compensating the caller's beneficiary address with the collected fees.
+
+```Solidity
+contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
+    ...
+    function handleOps(UserOperation[] calldata ops, address payable beneficiary) public nonReentrant {
+        ...
+        for (uint256 i = 0; i < opslen; i++) {
+            collected += _executeUserOp(i, ops[i], opInfos[i]);
+        }
+
+        // Perform post-bundle execution validation for each userOp
+        for (uint256 i = 0; i < opslen; i++) {
+            _validatePostExecution(ops[i], opInfos[i]);
+        }
+
+        _compensate(beneficiary, collected);
+    }
+    ...
+}
+```
 
 ## Rationale
 
-<!--
-  The rationale fleshes out the specification by describing what motivated the design and why particular design decisions were made. It should describe alternate designs that were considered and related work, e.g. how the feature is supported in other languages.
+This enhancement aims to unlock new capabilities and scenarios in DeFi, DApps, and beyond by enabling post-execution bundle validation. This feature is particularly beneficial in complex transaction sequences where one operation's outcome may affect subsequent ones' within the same transaction bundle. By allowing for validation after the execution of all bundled operations, this proposal accommodates the requirement for a generic, post-bundle execution validation mechanism that can address an array of conditions, including but not limited to the enforcement of transactional invariants and more sophisticated transaction constructs such as Intents fulfillment, and enhances the bundle's security guarantees.
 
-  The current placeholder is acceptable for a draft.
+Scenario Examples
 
-  TODO: Remove this comment before submitting
--->
+DeFi Sequences 
+A user performs a token swap followed by liquidity provision and staking in one transaction. Post-execution validation ensures that the entire sequence meets the user's conditions based on the final state, such as minimum received tokens.
 
-TBD
+Blockchain-based Games
+In-game transactions that depend on specific game states can be validated post-execution. Such validation ensures that actions like trades or character upgrades only proceed if prior operations result in the expected state.
+
+Social Recovery
+Validates the completion of a social recovery process based on approvals from designated guardians, ensuring the integrity of the recovery operation post-execution.
+
+Alternative design considerations
+
+During the design phase, we considered the existing `postOp` function utilized by Paymasters as an alternative mechanism for post-operation validation. As defined within the ERC-4337 standard, Paymaster's approach facilitates gas payment delegation and handles validation immediately after executing each user operation. While functionally significant, this approach cannot inherently assess the state changes produced by the entirety of a user operation bundle. Moreover, the semantics and primary intent of the Paymaster's post-operation validation are focused on the financial aspect of operations.
 
 ## Backwards Compatibility
 
-<!--
-
-  This section is optional.
-
-  All EIPs that introduce backwards incompatibilities must include a section describing these incompatibilities and their severity. The EIP must explain how the author proposes to deal with these incompatibilities. EIP submissions without a sufficient backwards compatibility treatise may be rejected outright.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
-No backward compatibility issues found.
-
-## Test Cases
-
-<!--
-  This section is optional for non-Core EIPs.
-
-  The Test Cases section should include expected input/output pairs, but may include a succinct set of executable tests. It should not include project build files. No new requirements may be be introduced here (meaning an implementation following only the Specification section should pass all tests here.)
-  If the test suite is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed
-
-  TODO: Remove this comment before submitting
--->
-
-## Reference Implementation
-
-<!--
-  This section is optional.
-
-  The Reference Implementation section should include a minimal implementation that assists in understanding or implementing this specification. It should not include project build files. The reference implementation is not a replacement for the Specification section, and the proposal should still be understandable without it.
-  If the reference implementation is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed.
-
-  TODO: Remove this comment before submitting
--->
+Given that each smart account is inherently bound to a specific EntryPoint contract, the ERC's updates do not impose any disruptive changes on existing accounts. Smart accounts that do not implement the new post-execution validation method will continue to operate as before without altering to their transactional behavior or interaction with the EntryPoint. This design choice is pivotal in ensuring that the integration of the new validation mechanism is non-intrusive and preserves the integrity of existing smart account deployments.
 
 ## Security Considerations
 
-<!--
-  All EIPs must contain a section that discusses the security implications/considerations relevant to the proposed change. Include information that might be important for security discussions, surfaces risks and can be used throughout the life cycle of the proposal. For example, include security-relevant design decisions, concerns, important discussions, implementation-specific guidance and pitfalls, an outline of threats and risks and how they are being addressed. EIP submissions missing the "Security Considerations" section will be rejected. An EIP cannot proceed to status "Final" without a Security Considerations discussion deemed sufficient by the reviewers.
+Security Benefits
+Incorporating a post-execution validation mechanism into ERC-4337 brings challenges and significant security benefits by enabling more thorough state validations post-transaction execution. This supplemental validation approach allows contracts to confirm that their post-conditions are met only after the entire transaction bundle has been executed, enhancing security and reliability.
 
-  The current placeholder is acceptable for a draft.
+Enhanced State Integrity Verification
+This mechanism ensures that complex operations involving multiple interdependent transactions can be validated against the final state. It guards against unforeseen changes in state that might occur during transaction execution, offering a more robust security model.
 
-  TODO: Remove this comment before submitting
--->
+Mitigation of State Reentrancy Vulnerabilities By allowing validation after all transactions in a bundle are executed, the mechanism reduces the risk of reentrancy attacks which are common in scenarios where multiple transactions interact with each other. This is particularly beneficial in complex DeFi interactions, where the final state validation confirms no undesirable state changes have occurred.
 
-Needs discussion.
+Security Risks
+This section outlines the implications of increased gas usage, potential vectors for DoS attacks, and mitigative strategies to address these concerns.
+
+Increased Gas Consumption
+Introducing a post-execution validation step inherently increases the gas consumption of processing user operation bundles. This excess consumption is due to the additional computational overhead required to assess the cumulative effect of the bundle's final state for each user operation.
+
+Addressing Increased Gas Consumption
+While the addition of post-execution validation incurs extra gas costs, its implementation can be optimized to mitigate impact:
+
+Selective Validation
+Implementers can design their validation logic to execute conditionally based on the specific requirements of the user operation. This approach ensures that the additional validation gas is only consumed when necessary rather than as a blanket requirement for all operations.
+
+Efficient Coding Practices
+Developers should employ gas-efficient coding practices. These practices include minimizing state reads and writes, leveraging memory over storage when feasible, and avoiding unnecessary computations.
+
+Mitigation of DoS Risks
+The potential for increased gas consumption to be exploited for DoS attacks is addressed through:
+
+Predefined Gas Limits
+Strict gas limits for post-execution validation prevent exploitation through excessive gas consumption, ensuring the network remains resilient against potential DoS attacks.
+
+Monitoring and Adaptation
+Continuous monitoring of gas usage patterns for post-execution validation allows for dynamic adjustments to gas limits and validation logic, further safeguarding against abuse.
 
 ## Copyright
 
