@@ -1,7 +1,7 @@
 ---
 
-title: Extend 4337 with post execution validation
-description: This ERC proposes a new IAccount interface as an extension for ERC-4337 to support post-execution validation.
+title: Extend 4337 with post-execution validation
+description: This proposal introduces post-bundle execution validation, allowing user operations to be validated against the final state of the network.
 author: Ofir Elias (EliasiOfir), Mario Karagiorgas (blewater).
 status: Draft
 type: Standards
@@ -12,7 +12,7 @@ requires: ERC-4337
 
 ## Abstract
 
-This proposal extends [ERC-4337](./erc-4337.md) with a post-execution validation mechanism. It extends the 4337 wallets' IAccount interface with a post-bundle execution validation function. Moreover, it proposes amending the EntryPoint contract's handleOps() function to call the proposed IAccount validation function. Thus, this proposal introduces a validation layer that occurs after the execution of the entire bundle, providing a comprehensive view of the final state against which each user operation can be validated.
+This proposal extends [ERC-4337](./erc-4337.md) wallets' IAccount interface with a post-bundle execution validation function. Moreover, it proposes amending the EntryPoint contract's handleOps() function to call the proposed IAccount validation function. Thus, this proposal introduces a validation layer that occurs after the execution of the entire bundle, providing a comprehensive view of the final state against which each user operation can be validated.
 
 ## Motivation
 The motivation behind enhancing ERC-4337 with a post-execution validation mechanism stems from the need to assess and validate the cumulative effects of user operations within a bundle, especially in light of their complex interdependencies and the final state they collectively produce. ERC-4337 cannot validate the state of a user operation after the execution of a bundle, limiting its use in scenarios where operations are interdependent. This limitation hinders assessing the effectiveness of executing dependent operations that rely on the outcome of preceding operations within the same bundle. For instance, in DeFi, a user aiming to perform a sequence of swaps and stakings in a single transaction (bundle) lacks the assurance that the entire operation can be validated post-execution, leading to potential risks. Similarly, decentralized games and social recovery mechanisms are unable to enforce conditions based on the final state after multiple operations.
