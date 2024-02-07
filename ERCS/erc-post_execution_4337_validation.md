@@ -15,7 +15,7 @@ requires: ERC-4337
 This proposal extends [ERC-4337](./erc-4337.md) wallets' IAccount interface with a post-bundle execution validation function. Moreover, it proposes amending the EntryPoint contract's handleOps() function to call the proposed IAccount validation function. Thus, this proposal introduces a validation layer that occurs after the execution of the entire bundle, providing a comprehensive view of the final state against which each user operation can be validated.
 
 ## Motivation
-The motivation behind enhancing ERC-4337 with a post-execution validation mechanism stems from the need to assess and validate the cumulative effects of user operations within a bundle, especially in light of their complex interdependencies and the final state they collectively produce. ERC-4337 cannot validate the state of a user operation after the execution of a bundle, limiting its use in scenarios where operations are interdependent. This limitation hinders assessing the effectiveness of executing dependent operations that rely on the outcome of preceding operations within the same bundle. For instance, in DeFi, a user aiming to perform a sequence of swaps and stakings in a single transaction (bundle) lacks the assurance that the entire operation can be validated post-execution, leading to potential risks. Similarly, decentralized games and social recovery mechanisms are unable to enforce conditions based on the final state after multiple operations.
+The motivation behind enhancing ERC-4337 with a post-execution validation mechanism stems from the need to assess and validate the cumulative effects of user operations within a bundle, especially in light of their complex interdependencies and the final state they collectively produce. ERC-4337 cannot validate the state of a user operation after the execution of a bundle, limiting its use in scenarios where operations are interdependent. This limitation hinders assessing the effectiveness of executing dependent operations that rely on the outcome of preceding operations within the same bundle. For instance, in DeFi, a user aiming to perform a sequence of swaps and stakings in a single transaction (bundle) lacks the assurance that the entire operation can be validated post-execution, leading to potential risks. Similarly, decentralized games and social recovery mechanisms cannot enforce conditions based on the final state after multiple operations.
 
 ## Specification
 
@@ -24,7 +24,7 @@ The IAccount interface should be extended to include a validatePostExecution met
 
 ```Solidity
 interface IAccount {
-    function validatePostExecution(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds) external returns (uint256 validationData);
+    function validatePostExecution(UserOperation calldata userOp, bytes32 userOpHash) external returns (uint256 validationData);
 }
 ```
 
@@ -34,7 +34,7 @@ The SimpleAccount contract should implement the validatePostExecution method, pr
 ```Solidity
 contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initializable {
     ...
-    function validatePostExecution(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds) external override returns (uint256 validationData) {
+    function validatePostExecution(UserOperation calldata userOp, bytes32 userOpHash) external override returns (uint256 validationData) {
         // Implement post-execution validation logic here
         ...
     }
@@ -43,12 +43,12 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, In
 ```
 
 EntryPoint Contract Modification
-The EntryPoint contract's handleOps function should be modified to call the validatePostExecution method for each userOp after executing the entire bundle. This ensures that all post-execution validations are performed before compensating the caller's beneficiary address with the collected fees.
+After executing the entire bundle, the EntryPoint contract's handleOps function should be modified to call the validatePostExecution method for each userOp. This ensures that all post-execution validations are performed before compensating the caller's beneficiary address with the collected fees.
 
 ```Solidity
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
     ...
-    function handleOps(UserOperation[] calldata ops, address payable beneficiary) public nonReentrant {
+    function handleOps(UserOperation[] calldata ops, address payable beneficiary) public non-reentrant {
         ...
         for (uint256 i = 0; i < opslen; i++) {
             collected += _executeUserOp(i, ops[i], opInfos[i]);
