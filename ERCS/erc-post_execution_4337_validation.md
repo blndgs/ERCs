@@ -86,12 +86,15 @@ During the design phase, we considered the existing `postOp` function utilized b
 
 ## Backwards Compatibility
 
-Since each smart account is inherently bound to a specific EntryPoint contract, the ERC's updates do not impose disruptive changes on existing accounts. Smart accounts that do not implement the new post-execution validation method will continue to operate as before without altering to their transactional behavior or interaction with the EntryPoint. This design choice is pivotal in ensuring that the integration of the new validation mechanism is non-intrusive and preserves the integrity of existing smart account deployments.
+Introducing the `validatePostExecution` method to the IAccount interface and its subsequent implementation in the accounts maintains compatibility with existing account deployments.
+
+Selective Execution
+Similar to the [v0.7.0 selective execution](https://github.com/eth-infinitism/account-abstraction/pull/380#issue-2014371829) approach of utilizing a 4-byte selector within the calldata to signal the EntryPoint contract for post-execution validation, only operations requiring this additional validation step will incur the associated gas costs.
 
 ## Security Considerations
 
 Security Benefits
-Incorporating a post-execution validation mechanism into ERC-4337 brings challenges and significant security benefits by enabling more thorough state validations post-transaction execution. This supplemental validation approach allows contracts to confirm that their post-conditions are met only after the entire transaction bundle has been executed, enhancing security and reliability.
+Incorporating a post-execution validation mechanism into ERC-4337 brings challenges and significant security benefits by enabling state validations post-transaction execution. This supplemental validation approach allows contracts to confirm that their post-conditions are met only after executing the entire transaction bundle.
 
 Enhanced State Integrity Verification
 This mechanism ensures that complex operations involving multiple interdependent transactions can be validated against the final state. It guards against unforeseen changes in state that might occur during transaction execution, offering a more robust security model.
@@ -121,9 +124,6 @@ Strict gas limits for post-execution validation prevent exploitation through exc
 
 Selective Validation
 Implementers can design their validation logic to execute conditionally based on the specific requirements of the user operation. Similar to the `executeUserOp` 4-byte selector within the calldata, the 4-byte selector of the `validatePostExecution` within calldata signals the EntryPoint to call it. This approach ensures that the additional validation gas is only consumed when necessary rather than as a blanket requirement for all operations.
-
-Mitigation of DoS Risks
-The potential for increased gas consumption to be exploited for DoS attacks is addressed through:
 
 ## Copyright
 
