@@ -2,7 +2,7 @@
 
 title: Extend 4337 with post-execution validation
 description: This proposal introduces post-bundle execution validation, allowing user operations to be validated against the final state of the network.
-author: Ofir Elias (EliasiOfir), Mario Karagiorgas (blewater).
+author: Ofir Elias (EliasiOfir), Har Preet Singh (singhhp1069), Mario Karagiorgas (blewater).
 status: Draft
 type: Standards
 category: ERC
@@ -12,7 +12,7 @@ requires: ERC-4337
 
 ## Abstract
 
-This proposal extends [ERC-4337](./erc-4337.md) wallets' IAccount interface with a post-bundle execution validation function. Moreover, it proposes amending the EntryPoint contract's handleOps() function to call the proposed IAccount validation function. Thus, this proposal introduces a validation layer that occurs after the execution of the entire bundle, providing a comprehensive view of the final state against which each user operation can be validated.
+This proposal extends [ERC-4337](./erc-4337.md) wallets' IAccount interface with a post-bundle execution validation function. Moreover, it proposes amending the EntryPoint contract's `handleOps()` function to call the proposed IAccount validation function. Thus, this proposal introduces a validation layer that occurs after the execution of the entire bundle, providing a comprehensive view of the final state against which each user operation can be validated.
 
 ## Motivation
 The motivation behind enhancing ERC-4337 with a post-execution validation mechanism stems from the need to assess and validate the cumulative effects of user operations within a bundle, especially in light of their complex interdependencies and the final state they collectively produce. ERC-4337 cannot validate the state of a user operation after the execution of a bundle, limiting its use in scenarios where operations are interdependent. This limitation hinders assessing the effectiveness of executing dependent operations that rely on the outcome of preceding operations within the same bundle. For instance, in DeFi, a user aiming to perform a sequence of swaps and stakings in a single transaction (bundle) lacks the assurance that the entire operation can be validated post-execution, leading to potential risks. Similarly, decentralized games and social recovery mechanisms cannot enforce conditions based on the final state after multiple operations.
@@ -20,7 +20,7 @@ The motivation behind enhancing ERC-4337 with a post-execution validation mechan
 ## Specification
 
 IAccount Interface Enhancement
-The IAccount interface should be extended to include a validatePostExecution method. This method allows for the validation of userOps after the entire bundle has been executed, enabling contracts to implement custom logic for validation based on the new network state.
+The IAccount interface is extended to include a validatePostExecution method. After executing the entire bundle, `validatePostExecution()` executes custom userOp validation logic.
 
 ```Solidity
 interface IAccount {
@@ -43,7 +43,7 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, In
 ```
 
 EntryPoint Contract Modification
-After executing the entire bundle, the EntryPoint contract's handleOps function should be modified to call the validatePostExecution method for each userOp. This ensures that all post-execution validations are performed before compensating the caller's beneficiary address with the collected fees.
+After executing the entire bundle, the EntryPoint contract's `handleOps()` function should be modified to call the validatePostExecution method for each userOp. This ensures that all post-execution validations are performed before compensating the caller's beneficiary address with the collected fees.
 
 ```Solidity
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
@@ -86,9 +86,11 @@ During the design phase, we considered the existing `postOp` function utilized b
 
 ## Backwards Compatibility
 
-Given that each smart account is inherently bound to a specific EntryPoint contract, the ERC's updates do not impose any disruptive changes on existing accounts. Smart accounts that do not implement the new post-execution validation method will continue to operate as before without altering to their transactional behavior or interaction with the EntryPoint. This design choice is pivotal in ensuring that the integration of the new validation mechanism is non-intrusive and preserves the integrity of existing smart account deployments.
+Since each smart account is inherently bound to a specific EntryPoint contract, the ERC's updates do not impose disruptive changes on existing accounts. Smart accounts that do not implement the new post-execution validation method will continue to operate as before without altering to their transactional behavior or interaction with the EntryPoint. This design choice is pivotal in ensuring that the integration of the new validation mechanism is non-intrusive and preserves the integrity of existing smart account deployments.
 
 ## Security Considerations
+
+
 
 Security Benefits
 Incorporating a post-execution validation mechanism into ERC-4337 brings challenges and significant security benefits by enabling more thorough state validations post-transaction execution. This supplemental validation approach allows contracts to confirm that their post-conditions are met only after the entire transaction bundle has been executed, enhancing security and reliability.
@@ -96,7 +98,8 @@ Incorporating a post-execution validation mechanism into ERC-4337 brings challen
 Enhanced State Integrity Verification
 This mechanism ensures that complex operations involving multiple interdependent transactions can be validated against the final state. It guards against unforeseen changes in state that might occur during transaction execution, offering a more robust security model.
 
-Mitigation of State Reentrancy Vulnerabilities By allowing validation after all transactions in a bundle are executed, the mechanism reduces the risk of reentrancy attacks which are common in scenarios where multiple transactions interact with each other. This is particularly beneficial in complex DeFi interactions, where the final state validation confirms no undesirable state changes have occurred.
+Mitigation of State Reentrancy Vulnerabilities
+Validating userOps post-bundle execution, the mechanism reduces the risk of reentrancy attacks, which are common in scenarios where multiple transactions interact. This is particularly beneficial in complex DeFi interactions, where the final state validation confirms no undesirable state changes have occurred.
 
 Security Risks
 This section outlines the implications of increased gas usage, potential vectors for DoS attacks, and mitigative strategies to address these concerns.
