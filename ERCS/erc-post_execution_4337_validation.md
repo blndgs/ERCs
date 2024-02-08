@@ -90,8 +90,6 @@ Since each smart account is inherently bound to a specific EntryPoint contract, 
 
 ## Security Considerations
 
-
-
 Security Benefits
 Incorporating a post-execution validation mechanism into ERC-4337 brings challenges and significant security benefits by enabling more thorough state validations post-transaction execution. This supplemental validation approach allows contracts to confirm that their post-conditions are met only after the entire transaction bundle has been executed, enhancing security and reliability.
 
@@ -102,28 +100,30 @@ Mitigation of State Reentrancy Vulnerabilities
 Validating userOps post-bundle execution, the mechanism reduces the risk of reentrancy attacks, which are common in scenarios where multiple transactions interact. This is particularly beneficial in complex DeFi interactions, where the final state validation confirms no undesirable state changes have occurred.
 
 Security Risks
-This section outlines the implications of increased gas usage, potential vectors for DoS attacks, and mitigative strategies to address these concerns.
+A concern is ensuring the system's robustness against both Denial of Service (DoS) and griefing attacks, particularly those exacerbated by the potential for increased gas consumption.
+
+This section incorporates several mitigation strategies inspired by the original ERC-4337 specification, tailored to address the unique challenges posed by post-execution validation:
 
 Increased Gas Consumption
-Introducing a post-execution validation step inherently increases the gas consumption of processing user operation bundles. This excess consumption is due to the additional computational overhead required to assess the cumulative effect of the bundle's final state for each user operation.
+The introduction of post-execution validation inherently increases the computational and gas overhead associated with processing user operation bundles. This heightened consumption poses risks of network congestion and opens avenues for malicious entities to exploit these mechanisms, intentionally crafting operations that fail validation to waste resources or complicate the validation process for legitimate operations within the same bundle.
 
 Addressing Increased Gas Consumption
 While the addition of post-execution validation incurs extra gas costs, its implementation can be optimized to mitigate impact:
 
-Selective Validation
-Implementers can design their validation logic to execute conditionally based on the specific requirements of the user operation. This approach ensures that the additional validation gas is only consumed when necessary rather than as a blanket requirement for all operations.
+Stake-Based Throttling and Banning
+Analogous to ERC-4337's approach to mitigating DoS attacks through economic disincentives, entities causing the invalidation of multiple userOps due to failed post-execution validation are subject to throttling or temporal banning. This mechanism is enforced through a required stake, making the cost of launching such attacks prohibitively high.
 
-Efficient Coding Practices
-Developers should employ gas-efficient coding practices. These practices include minimizing state reads and writes, leveraging memory over storage when feasible, and avoiding unnecessary computations.
-
-Mitigation of DoS Risks
-The potential for increased gas consumption to be exploited for DoS attacks is addressed through:
+Pure Validation Logic
+Similar to the `validateUserOp` before the bundle execution, the `validatePostExecution` method restricts the use of environment-dependent opcodes, ensuring deterministic validation outcomes. To accommodate the need to assess post-execution state conditions, contracts can design their operations and validation logic to indirectly consider the necessary environmental conditions. For example, a contract could record relevant environmental information during operation execution (such as the current block number) in its storage, which could then be referenced during post-execution validation.
 
 Predefined Gas Limits
 Strict gas limits for post-execution validation prevent exploitation through excessive gas consumption, ensuring the network remains resilient against potential DoS attacks.
 
-Monitoring and Adaptation
-Continuous monitoring of gas usage patterns for post-execution validation allows for dynamic adjustments to gas limits and validation logic, further safeguarding against abuse.
+Selective Validation
+Implementers can design their validation logic to execute conditionally based on the specific requirements of the user operation. Similar to the `executeUserOp` 4-byte selector within the calldata, the 4-byte selector of the `validatePostExecution` within calldata signals the EntryPoint to call it. This approach ensures that the additional validation gas is only consumed when necessary rather than as a blanket requirement for all operations.
+
+Mitigation of DoS Risks
+The potential for increased gas consumption to be exploited for DoS attacks is addressed through:
 
 ## Copyright
 
