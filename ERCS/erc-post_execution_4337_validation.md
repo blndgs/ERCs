@@ -50,29 +50,47 @@ function validatePostExecution(UserOperation calldata userOp, bytes32 userOpHash
 ```
 
 EntryPoint Contract Modification
-The EntryPoint contract's handleOps() function is modified to call _validatePostExecution for each UserOperation which executes account post exeucution validation. The validation dispatch follows the EntryPoint v0.7.0 pattern of calling conditionally the `execUserOperation`.
+The EntryPoint contract's handleOps() function is modified to call _validatePostExecution for each UserOperation which executes account post exeucution validation. The validation dispatch follows the EntryPoint v0.7.0 pattern of calling conditionally the `execUserOperation`, based on the detection of a specific selector in the userOp's signature, which indicates whether the account has implemented the validatePostExecution function.
 
 ```Solidity
-contract EntryPoint is IEntryPoint {
+contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
     ...
     function handleOps(UserOperation[] calldata ops, address payable beneficiary) public non-reentrant {
-        ...
-        // Existing operations
+        uint256 collected = 0;
         for (uint256 i = 0; i < ops.length; i++) {
-            collected += _executeUserOp(i, ops[i]);
+            // EntryPoint v0.7.0
+            collected += _executeUserOp(ops[i]);
         }
 
-        // Conditional post-execution validation
+        // Invoke post-execution validation for each user operation
         for (uint256 i = 0; i < ops.length; i++) {
-            if (ops[i].signature[:4] == IAccount.validatePostExecution.selector) {
-                require(IAccount(ops[i].target).validatePostExecution(ops[i], keccak256(abi.encode(ops[i]))),
-                        "Post-execution validation failed");
-            }
+            _validatePostExecution(ops[i]);
         }
 
         _compensate(beneficiary, collected);
     }
     ...
+}
+
+function _validatePostExecution(UserOperation calldata userOp) internal {
+    bytes4 selector;
+
+    // Extract the first 4 bytes of the signature as the selector
+    assembly {
+        selector := mload(add(userOp.signature, 32))
+    }
+
+    if (selector == IAccount.validatePostExecution.selector) {
+        // If the selector matches, perform the conditional validation call
+        bool validationPassed;
+        bytes memory callData = abi.encodeWithSelector(IAccount.validatePostExecution.selector, userOp, keccak256(abi.encode(userOp)));
+
+        // Call the validatePostExecution function on the target account
+        (validationPassed,) = address(userOp.target).call(callData);
+
+        // Check the validation result and revert if validation failed
+        require(validationPassed, "Post-execution validation failed");
+    }
 }
 ```
 
