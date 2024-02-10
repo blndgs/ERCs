@@ -12,7 +12,7 @@ requires: ERC-4337
 
 ## Abstract
 
-This proposal extends the [ERC-4337](./erc-4337.md) standard IAccount interface with a post-bundle execution validation function. This function enables post-transaction validation of user operations based on the final network state. Thus, this proposal introduces a validation layer that occurs after the execution of the entire bundle, providing a comprehensive view of the final state against which each user operation can be validated. The EntryPoint contract's `handleOps()` function will be updated to conditionally invoke validatePostExecution if signaled by a specific selector within the userOp's signature field.
+This proposal extends the [ERC-4337](./erc-4337.md) standard `IAccount` interface with a post-bundle execution validation function. This function enables post-transaction validation of user operations based on the final network state. Thus, this proposal introduces a validation layer that occurs after the execution of the entire bundle, providing a comprehensive view of the final state against which each user operation can be validated. The EntryPoint contract's `handleOps` function will be updated to conditionally invoke validatePostExecution if signaled by a specific selector within the userOp's signature field.
 
 ## Motivation
 
@@ -20,8 +20,8 @@ The motivation behind enhancing ERC-4337 with a post-execution validation mechan
 
 ## Specification
 
-IAccount Interface Enhancement
-The IAccount interface is extended to include a validatePostExecution method. After executing the entire bundle, `validatePostExecution()` executes custom post-bundle execution userOp validation logic.
+### `IAccount` Interface Enhancement
+The `IAccount` interface is extended to include a `validatePostExecution` method. After executing the entire bundle, `validatePostExecution` executes custom post-bundle execution userOp validation logic.
 
 ```Solidity
 interface IAccount {
@@ -35,7 +35,7 @@ interface IAccount {
 }
 ```
 
-SimpleAccount Implementation
+### SimpleAccount Implementation
 The SimpleAccount contract may implement the validatePostExecution method, to perform post-execution validations. This method could, for instance, check whether the account's state after the bundle execution meets certain criteria specified in the userOp.
 
 ```Solidity
@@ -49,8 +49,8 @@ function validatePostExecution(UserOperation calldata userOp, bytes32 userOpHash
 }
 ```
 
-EntryPoint Contract Modification
-The EntryPoint contract's handleOps() function is modified to call _validatePostExecution for each UserOperation which executes account post exeucution validation. The validation dispatch follows the EntryPoint v0.7.0 pattern of calling conditionally the `execUserOperation`, based on the detection of a specific selector in the userOp's signature, which indicates whether the account has implemented the validatePostExecution function.
+### EntryPoint Contract Modification
+The `EntryPoint` contract's `handleOps` function is modified to call `_validatePostExecution` for each UserOperation which executes account post exeucution validation. The validation dispatch follows the EntryPoint v0.7.0 pattern of calling conditionally the `execUserOperation`, based on the detection of a specific selector in the userOp's signature, which indicates whether the account has implemented the validatePostExecution function.
 
 ```Solidity
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
@@ -98,24 +98,24 @@ function _validatePostExecution(UserOperation calldata userOp) internal {
 
 This enhancement aims to unlock new capabilities and scenarios in DeFi, DApps, and beyond by enabling post-execution bundle validation. This feature is particularly beneficial in complex transaction sequences where one operation's outcome may affect subsequent ones' within the same transaction bundle. By allowing for validation after the execution of all bundled operations, this proposal accommodates the requirement for a generic, post-bundle execution validation mechanism that can address an array of conditions, including but not limited to the enforcement of transactional invariants and more sophisticated transaction constructs such as Intents fulfillment, and enhances the bundle's security guarantees.
 
-Scenario Examples
+### Scenario Examples
 
-DeFi Sequences 
+#### DeFi Sequences 
 A user performs a token swap followed by liquidity provision and staking in one transaction. Post-execution validation ensures that the entire sequence meets the user's conditions based on the final state, such as minimum received tokens.
 
-Blockchain-based Games
+#### Blockchain-based Games
 In-game transactions that depend on specific game states can be validated post-execution. Such validation ensures that actions like trades or character upgrades only proceed if prior operations result in the expected state.
 
-Social Recovery
+#### Social Recovery
 Validates the completion of a social recovery process based on approvals from designated guardians, ensuring the integrity of the recovery operation post-execution.
 
-Alternative design considerations
+## Alternative design considerations
 
 During the design phase, we considered the existing `postOp` function utilized by Paymasters as an alternative mechanism for post-operation validation. As defined within the ERC-4337 standard, Paymaster's approach facilitates gas payment delegation and handles validation immediately after executing each user operation. While functionally significant, this approach cannot inherently assess the state changes produced by the entirety of a user operation bundle. Moreover, the semantics and primary intent of the Paymaster's post-operation validation are focused on the financial aspect of operations.
 
 ## Backwards Compatibility
 
-Introducing the `validatePostExecution` method to the IAccount interface and its subsequent implementation in the accounts maintains compatibility with existing account deployments.
+Introducing the `validatePostExecution` method to the `IAccount` interface and its subsequent implementation in the accounts maintains compatibility with existing account deployments.
 
 Selective Execution
 Similar to the [v0.7.0 selective execution](https://github.com/eth-infinitism/account-abstraction/pull/380#issue-2014371829) approach of utilizing a 4-byte selector within the calldata to signal the EntryPoint contract for post-execution validation, only operations requiring this additional validation step will incur the associated gas costs.
