@@ -70,40 +70,51 @@ The `EntryPoint` contract's `handleOps` function is modified to call `_validateP
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
     ...
     function handleOps(UserOperation[] calldata ops, address payable beneficiary) public non-reentrant {
+
+        // Prevalidation...
+
+        // EntryPoint v0.7.0 execution loop
         uint256 collected = 0;
         for (uint256 i = 0; i < ops.length; i++) {
-            // EntryPoint v0.7.0
             collected += _executeUserOp(ops[i]);
         }
 
+        // ** Proposed addition: 
         // Invoke post-execution validation for each user operation
         for (uint256 i = 0; i < ops.length; i++) {
-            _validatePostExecution(ops[i]);
+            _validatePostExecution(ops[i], opInfos[i].userOpHash);
         }
 
-        _compensate(beneficiary, collected);
+        // ...
     }
     ...
 }
 
-function _validatePostExecution(UserOperation calldata userOp) internal {
+function _validatePostExecution(uint256 opIndex, UserOperation calldata userOp, bytes32 userOpHash) internal {
     bytes4 selector;
 
     // Extract the first 4 bytes of the signature as the selector
+    bytes calldata signature = userOp.Signature;
     assembly {
-        selector := mload(add(userOp.signature, 32))
+        // omitting length check for brievity
+        selector := mload(add(signature, 32))
     }
 
     if (selector == IAccount.validatePostExecution.selector) {
-        // If the selector matches, perform the conditional validation call
-        bool validationPassed;
-        bytes memory callData = abi.encodeWithSelector(IAccount.validatePostExecution.selector, userOp, keccak256(abi.encode(userOp)));
+        bytes memory callData = abi.encodeCall(
+            IAccountPostExecution.validatePostExecution,
+            (userOp, userOpHash)
+        );
 
         // Call the validatePostExecution function on the target account
-        (validationPassed,) = address(userOp.target).call(callData);
-
-        // Check the validation result and revert if validation failed
-        require(validationPassed, "Post-execution validation failed");
+        (bool success, bytes memory returndata) = address(userOp.sender).call(callData);
+        if (!success) {
+            if (returndata.length > 0) {
+                // revert data is UTF-8 error message
+                revert(string(returndata));
+            }
+            revert();
+        }
     }
 }
 ```
