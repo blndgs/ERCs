@@ -31,10 +31,10 @@ The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SH
 
 This proposal does not dictate the use of a particular module standard to support custom validation logic.
 
+## Reference Implementation
 
-
-#### Selective Validation
-Implementers can design their validation logic to execute conditionally based on the specific requirements of the user operation. Similar to the `executeUserOp` 4-byte selector within the calldata, the 4-byte selector of the `validatePostExecution` within calldata signals the EntryPoint to call it. This approach ensures that the additional validation gas is only consumed when necessary rather than as a blanket requirement for all operations.
+### Selective Validation
+Implementers can design their validation logic to execute conditionally based on the specific requirements of the user operation. Similar to the [`executeUserOp`](../assets/erc-post_execution_4337_validation/entrypoint_0.7.pdf) 4-byte selector of the `validatePostExecution` within signature signals the EntryPoint to call it.
 
 ### `IAccountPostExecution` Interface Enhancement
 A new optional `validatePostExecution` function in IAccountPostExecution.
