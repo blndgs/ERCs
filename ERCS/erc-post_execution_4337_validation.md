@@ -64,7 +64,7 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, In
 ```
 
 ### EntryPoint Contract Modification
-The `EntryPoint` contract's `handleOps` function is modified to call `_validatePostExecution` for each UserOperation which executes account post exeucution validation. The validation dispatch follows the EntryPoint v0.7.0 pattern of calling conditionally the `execUserOperation`, based on the detection of a specific selector in the userOp's signature, which indicates whether the account has implemented the validatePostExecution function.
+The `EntryPoint` contract's `handleOps` function is modified to call `_validatePostExecution` for each UserOperation, which executes account post-execution validation. The validation dispatch follows the EntryPoint v0.7.0 pattern of calling conditionally the `execUserOperation`, based on the detection of a specific selector in the userOp's signature, which indicates whether the account has implemented the validatePostExecution function.
 
 ```Solidity
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
