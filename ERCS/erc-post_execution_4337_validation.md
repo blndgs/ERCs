@@ -142,7 +142,7 @@ During the design phase, we considered the existing `postOp` function utilized b
 
 ## Backwards Compatibility
 
-Introducing the `validatePostExecution` function and the `IAccountExecution` interface and its optional implementation in the accounts maintains compatibility with existing account deployments.
+Introducing the `validatePostExecution` function and the `IAccountPostExecution` interface and its optional implementation in the accounts maintains compatibility with existing account deployments.
 
 Selective Execution
 Similar to the [v0.7.0 executeUserOp](../assets/erc-post_execution_4337_validation/entrypoint_0.7.pdf) selective execution approach of including a 4-byte selector within the signature signal this additional validation step.
