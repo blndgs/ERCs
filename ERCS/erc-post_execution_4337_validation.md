@@ -118,7 +118,7 @@ During the design phase, we considered the existing `postOp` function utilized b
 Introducing the `validatePostExecution` method to the `IAccount` interface and its subsequent implementation in the accounts maintains compatibility with existing account deployments.
 
 Selective Execution
-Similar to the [v0.7.0 selective execution](https://github.com/eth-infinitism/account-abstraction/pull/380#issue-2014371829) approach of utilizing a 4-byte selector within the calldata to signal the EntryPoint contract for post-execution validation, only operations requiring this additional validation step will incur the associated gas costs.
+Similar to the [v0.7.0 executeUserOp](../assets/erc-post_execution_4337_validation/entrypoint_0.7.pdf) selective execution approach of including a 4-byte selector within the signature to signal operations requiring this additional validation step will incur the associated gas costs.
 
 ## Security Considerations
 
