@@ -90,6 +90,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
     ...
 }
 
+// Entrypoint
 function _validatePostExecution(uint256 opIndex, UserOperation calldata userOp, bytes32 userOpHash) internal {
     bytes4 selector;
 
@@ -144,12 +145,12 @@ During the design phase, we considered the existing `postOp` function utilized b
 Introducing the `validatePostExecution` function and the `IAccountExecution` interface and its optional implementation in the accounts maintains compatibility with existing account deployments.
 
 Selective Execution
-Similar to the [v0.7.0 executeUserOp](../assets/erc-post_execution_4337_validation/entrypoint_0.7.pdf) selective execution approach of including a 4-byte selector within the signature to signal operations requiring this additional validation step will incur the associated gas costs.
+Similar to the [v0.7.0 executeUserOp](../assets/erc-post_execution_4337_validation/entrypoint_0.7.pdf) selective execution approach of including a 4-byte selector within the signature signal this additional validation step.
 
 ## Security Considerations
 
 ### DOS, Griefing attacks
-Heightened gas consumption poses risks of network congestion and opens avenues for malicious entities to exploit these mechanisms, intentionally crafting operations that fail validation to waste resources or undermine the validation process for legitimate operations within the same bundle.
+Post-bundle execution validation opens avenues for malicious entities to exploit the mechanism, intentionally crafting operations that fail validation to waste resources or undermine the validation process for legitimate operations within the same bundle.
 
 ### Mitigation through Stake-Based Throttling and Banning
 Analogous to ERC-4337's approach to mitigating DoS attacks through economic disincentives, entities causing the invalidation of multiple userOps due to failed post-execution validation are subject to throttling, temporal banning, or through a required stake.
